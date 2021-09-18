@@ -10,6 +10,10 @@ export class AwsCdkS3BucketStack extends cdk.Stack {
     const bucket = new Bucket(this, 'HuiAppBucket',{
       encryption: BucketEncryption.S3_MANAGED
     });
-    // The code that defines your stack goes here
+    // Output the bucket name
+    new cdk.CfnOutput(this, 'MySimpleAppBucketNameExport',{
+      value: bucket.bucketName,
+      exportName: 'HuiAppBucket'
+    });
   }
 }
