@@ -7,25 +7,48 @@ import { PolicyStatement } from '@aws-cdk/aws-iam'
 import {BucketDeployment, Source} from '@aws-cdk/aws-s3-deployment';
 import {HttpApi,HttpMethod} from '@aws-cdk/aws-apigatewayv2'
 import {LambdaProxyIntegration} from '@aws-cdk/aws-apigatewayv2-integrations'
+import {CloudFrontWebDistribution} from '@aws-cdk/aws-cloudfront'
 
 export class HuiSimpleAppStack extends cdk.Stack {
   constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
     //create s3 bucket
-    const bucket = new Bucket(this, 'HuiAppBucket',{
+    const bucket = new Bucket(this, 'MySimpleAppBucket',{
       encryption: BucketEncryption.S3_MANAGED
     });
 
     //copy local photo to s3 bucket
-    new BucketDeployment(this, 'HuiSimpleAppPhoto',{
+    new BucketDeployment(this, 'MySimpleAppPhoto',{
       sources:[Source.asset(path.join(__dirname, '..', 'photos'))],
       destinationBucket: bucket
     });
 
+    const websiteBucket = new Bucket(this, 'MySimpleAppWebsiteBucket',{
+      websiteIndexDocument: 'index.html',
+      publicReadAccess: true
+    });
+
+    new BucketDeployment(this, 'MysimpleAppWebsiteDeploy', {
+      sources: [Source.asset(path.join(__dirname,'..', 'frontend', 'build'))],
+      destinationBucket: websiteBucket
+    });
+
+    //create cloudfront
+    const cloudFront = new CloudFrontWebDistribution(this,'MySimpleAppDistribution',{
+      originConfigs: [
+        {
+          s3OriginSource: {
+            s3BucketSource: websiteBucket,
+          },
+          behaviours: [{isDefaultBehavior: true }],
+        },
+      ],
+    });
+
     //create lambda function
     //this function require docker running
-    const getPhotos = new lambda.NodejsFunction(this, 'HuiSimpleAppLamda',{
+    const getPhotos = new lambda.NodejsFunction(this, 'MySimpleAppLamda',{
       runtime: Runtime.NODEJS_12_X,
       entry: path.join(__dirname, '..', 'api', 'get-photos', 'index.ts'),
       handler: 'getPhotos',
@@ -34,6 +57,7 @@ export class HuiSimpleAppStack extends cdk.Stack {
       },
     });
 
+    //Add bucket permission
     const bucketContainerPermissions = new PolicyStatement();
     bucketContainerPermissions.addResources(bucket.bucketArn);
     bucketContainerPermissions.addActions('s3:ListBucket');
@@ -45,6 +69,7 @@ export class HuiSimpleAppStack extends cdk.Stack {
     getPhotos.addToRolePolicy(bucketPermissions);
     getPhotos.addToRolePolicy(bucketContainerPermissions);
 
+    //Create api gateway
     const httpApi = HttpApi(this,'MySimpleAppHttpApi', {
       corsPreflight: {
         allowOrigins: ['*'],
@@ -54,6 +79,7 @@ export class HuiSimpleAppStack extends cdk.Stack {
       createDefaultStage: true
     })
 
+    //add lambda integration for api gateway
     const lambdaIntegration = new LambdaProxyIntegration({
         handler: getPhotos
       });
@@ -64,13 +90,22 @@ export class HuiSimpleAppStack extends cdk.Stack {
         HttpMethod.GET,
       ],
       integration: lambdaIntegration
-    });
-    
+    });    
 
     //cloudformation ouput
-    new cdk.CfnOutput(this,'HuiSimpleAppBucketNameExport',{
+    new cdk.CfnOutput(this,'MySimpleAppBucketNameExport',{
       value: bucket.bucketName,
       exportName: 'MySimpleAppBucketName',
+    });
+
+    new cdk.CfnOutput(this,'MySimpleAppWebsiteBucketNameExport',{
+      value: websiteBucket.bucketName,
+      exportName: 'MySimpleAppWebsiteBucketName',
+    });
+
+    new cdk.CfnOutput(this, 'MySimpleAppWebsiteUrl',{
+      value: cloudFront.distributionDomainName,
+      exportName: 'MySimpleAppWebsiteUrl',
     });
 
     new cdk.CfnOutput(this, 'MySimpleAppApi', {
