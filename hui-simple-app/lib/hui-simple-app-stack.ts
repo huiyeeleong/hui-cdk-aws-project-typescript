@@ -6,6 +6,7 @@ import * as path from 'path';
 import { PolicyStatement } from '@aws-cdk/aws-iam'
 import {BucketDeployment, Source} from '@aws-cdk/aws-s3-deployment';
 import {HttpApi,HttpMethod} from '@aws-cdk/aws-apigatewayv2'
+import {LambdaProxyIntegration} from '@aws-cdk/aws-apigatewayv2-integrations'
 
 export class HuiSimpleAppStack extends cdk.Stack {
   constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
@@ -52,13 +53,29 @@ export class HuiSimpleAppStack extends cdk.Stack {
       apiName: 'photo-api',
       createDefaultStage: true
     })
-    
 
+    const lambdaIntegration = new LambdaProxyIntegration({
+        handler: getPhotos
+      });
+    
+    httpApi.addResources({
+      path: '/getAllPhotos',
+      methods: [
+        HttpMethod.GET,
+      ],
+      integration: lambdaIntegration
+    });
+    
 
     //cloudformation ouput
     new cdk.CfnOutput(this,'HuiSimpleAppBucketNameExport',{
       value: bucket.bucketName,
       exportName: 'MySimpleAppBucketName',
+    });
+
+    new cdk.CfnOutput(this, 'MySimpleAppApi', {
+      value: HttpApi.url,
+      exportName: 'MySimpleAppApiEndPoint',
     });
   }
 }
