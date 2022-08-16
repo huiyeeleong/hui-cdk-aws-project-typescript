@@ -15,7 +15,7 @@ https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html
 
 If you DONT have cdk installed
 
-npm i -g aws-cdk
+npm install -g aws-cdk
 
 npm install -g typescript
 
