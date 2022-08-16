@@ -5,6 +5,7 @@ import {Runtime} from '@aws-cdk/aws-lambda';
 import * as path from 'path';
 import { PolicyStatement } from '@aws-cdk/aws-iam'
 import {BucketDeployment, Source} from '@aws-cdk/aws-s3-deployment';
+import {HttpApi,HttpMethod} from '@aws-cdk/aws-apigatewayv2'
 
 export class HuiSimpleAppStack extends cdk.Stack {
   constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
@@ -42,6 +43,15 @@ export class HuiSimpleAppStack extends cdk.Stack {
 
     getPhotos.addToRolePolicy(bucketPermissions);
     getPhotos.addToRolePolicy(bucketContainerPermissions);
+
+    const httpApi = HttpApi(this,'MySimpleAppHttpApi', {
+      corsPreflight: {
+        allowOrigins: ['*'],
+        allowMethods:[HttpMethod.GET]
+      },
+      apiName: 'photo-api',
+      createDefaultStage: true
+    })
     
 
 
