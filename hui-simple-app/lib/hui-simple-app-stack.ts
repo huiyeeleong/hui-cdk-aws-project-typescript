@@ -29,10 +29,7 @@ export class HuiSimpleAppStack extends cdk.Stack {
       publicReadAccess: true
     });
 
-    new BucketDeployment(this, 'MysimpleAppWebsiteDeploy', {
-      sources: [Source.asset(path.join(__dirname,'..', 'frontend', 'build'))],
-      destinationBucket: websiteBucket
-    });
+    
 
     //create cloudfront
     const cloudFront = new CloudFrontWebDistribution(this,'MySimpleAppDistribution',{
@@ -44,6 +41,12 @@ export class HuiSimpleAppStack extends cdk.Stack {
           behaviours: [{isDefaultBehavior: true }],
         },
       ],
+    });
+
+    new BucketDeployment(this, 'MysimpleAppWebsiteDeploy', {
+      sources: [Source.asset(path.join(__dirname,'..', 'frontend', 'build'))],
+      destinationBucket: websiteBucket,
+      distribution: cloudFront,
     });
 
     //create lambda function
