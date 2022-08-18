@@ -9,13 +9,16 @@ import {HttpApi,HttpMethod} from '@aws-cdk/aws-apigatewayv2'
 import {LambdaProxyIntegration} from '@aws-cdk/aws-apigatewayv2-integrations'
 import {CloudFrontWebDistribution} from '@aws-cdk/aws-cloudfront'
 
+interface SimpleAppStackProps extends cdk.StackProps{
+  envName: String
+}
 export class HuiSimpleAppStack extends cdk.Stack {
-  constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
+  constructor(scope: cdk.Construct, id: string, props?: SimpleAppStackProps) {
     super(scope, id, props);
 
-    //create s3 bucket
+    //create s3 bucket create encrpyted bucket when its dev else create unencrypted 
     const bucket = new Bucket(this, 'MySimpleAppBucket',{
-      encryption: BucketEncryption.S3_MANAGED
+      encryption: props?.envName === 'prod' ? BucketEncryption.S3_MANAGED: BucketEncryption.UNENCRYPTED
     });
 
     //copy local photo to s3 bucket
@@ -103,17 +106,17 @@ export class HuiSimpleAppStack extends cdk.Stack {
 
     new cdk.CfnOutput(this,'MySimpleAppWebsiteBucketNameExport',{
       value: websiteBucket.bucketName,
-      exportName: 'MySimpleAppWebsiteBucketName',
+      exportName: `MySimpleAppWebsiteBucketName${props?.envName}`,
     });
 
     new cdk.CfnOutput(this, 'MySimpleAppWebsiteUrl',{
       value: cloudFront.distributionDomainName,
-      exportName: 'MySimpleAppWebsiteUrl',
+      exportName: `MySimpleAppWebsiteUrl${props?.envName}`,
     });
 
     new cdk.CfnOutput(this, 'MySimpleAppApi', {
       value: HttpApi.url,
-      exportName: 'MySimpleAppApiEndPoint',
+      exportName: `MySimpleAppApiEndPoint${props?.envName}`,
     });
   }
 }
