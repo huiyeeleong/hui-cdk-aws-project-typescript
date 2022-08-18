@@ -1,4 +1,4 @@
-import { Bucket, BucketEncryption } from '@aws-cdk/aws-s3';
+
 import * as lambda from '@aws-cdk/aws-lambda-nodejs';
 import * as cdk from '@aws-cdk/core';
 import {Runtime} from '@aws-cdk/aws-lambda';
@@ -10,6 +10,10 @@ import {HttpApi,HttpMethod} from '@aws-cdk/aws-apigatewayv2'
 import {LambdaProxyIntegration} from '@aws-cdk/aws-apigatewayv2-integrations'
 import {CloudFrontWebDistribution, Distribution, } from '@aws-cdk/aws-cloudfront'
 import {S3Origin} from '@aws-cdk/aws-cloudfront-origins'
+import {CloudFrontTarget, RecordTarget} from '@aws-cdk/aws-route53-targets'
+import { Bucket, BucketEncryption } from '@aws-cdk/aws-s3';
+import { S3BucketWithDeploy } from './s3bucket-with-deploy';
+
 
 
 
@@ -21,18 +25,13 @@ interface HuiSimpleAppStackProps extends cdk.StackProps{
 export class HuiSimpleAppStack extends cdk.Stack {
   constructor(scope: cdk.Construct, id: string, props: HuiSimpleAppStackProps) {
     super(scope, id, props);
+    const {dnsName, hostedZone, certificate} = props;
+            const bucket: IBucket
 
-    //create s3 bucket create encrpyted bucket when its dev else create unencrypted 
-    const bucket = new Bucket(this, 'MySimpleAppBucket',{
-      encryption: BucketEncryption.S3_MANAGED
+    const {bucket} = new S3BucketWithDeploy(this, 'MySimpleAppCustomBucket',{
+      deployTo: ['..', 'photos'],
+      encrpytion: BucketEncryption.S3_MANAGED
     });
-
-    //copy local photo to s3 bucket
-    new BucketDeployment(this, 'MySimpleAppPhoto',{
-      sources:[Source.asset(path.join(__dirname, '..', 'photos'))],
-      destinationBucket: bucket
-    });
-
     const websiteBucket = new Bucket(this, 'MySimpleAppWebsiteBucket',{
       websiteIndexDocument: 'index.html',
       publicReadAccess: true
