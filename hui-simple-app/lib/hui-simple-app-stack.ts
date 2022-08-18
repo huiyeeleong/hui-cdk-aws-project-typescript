@@ -4,21 +4,27 @@ import * as cdk from '@aws-cdk/core';
 import {Runtime} from '@aws-cdk/aws-lambda';
 import * as path from 'path';
 import { PolicyStatement } from '@aws-cdk/aws-iam'
+import { ARecord} from '@aws-cdk/aws-route53'
 import {BucketDeployment, Source} from '@aws-cdk/aws-s3-deployment';
 import {HttpApi,HttpMethod} from '@aws-cdk/aws-apigatewayv2'
 import {LambdaProxyIntegration} from '@aws-cdk/aws-apigatewayv2-integrations'
-import {CloudFrontWebDistribution} from '@aws-cdk/aws-cloudfront'
+import {CloudFrontWebDistribution, Distribution, } from '@aws-cdk/aws-cloudfront'
+import {S3Origin} from '@aws-cdk/aws-cloudfront-origins'
 
-interface SimpleAppStackProps extends cdk.StackProps{
-  envName: String
+
+
+interface HuiSimpleAppStackProps extends cdk.StackProps{
+  dnsDomainName: string 
+  hostedZone: IPublicHostedZone
+  certificate: ICertificate
 }
 export class HuiSimpleAppStack extends cdk.Stack {
-  constructor(scope: cdk.Construct, id: string, props?: SimpleAppStackProps) {
+  constructor(scope: cdk.Construct, id: string, props: HuiSimpleAppStackProps) {
     super(scope, id, props);
 
     //create s3 bucket create encrpyted bucket when its dev else create unencrypted 
     const bucket = new Bucket(this, 'MySimpleAppBucket',{
-      encryption: props?.envName === 'prod' ? BucketEncryption.S3_MANAGED: BucketEncryption.UNENCRYPTED
+      encryption: BucketEncryption.S3_MANAGED
     });
 
     //copy local photo to s3 bucket
@@ -33,18 +39,28 @@ export class HuiSimpleAppStack extends cdk.Stack {
     });
 
     
+    const cloudfront1 = new Distribution(this, 'HuiSimepleAppDistribution', {
+      defaultBehavior: {origin: new S3Origin(websiteBucket)},
+      domainNames: [props.dnsName],
+      certificate: props.certificate
+    });
+
+    new ARecord(this, 'HuiSimpleAppARecordApex',{
+      zone: props.hostedZone,
+      target: RecordTarget.fromAlias(new CloudFrontTarget(cloudfront1))
+    })
 
     //create cloudfront
-    const cloudFront = new CloudFrontWebDistribution(this,'MySimpleAppDistribution',{
-      originConfigs: [
-        {
-          s3OriginSource: {
-            s3BucketSource: websiteBucket,
-          },
-          behaviours: [{isDefaultBehavior: true }],
-        },
-      ],
-    });
+    // const cloudFront = new CloudFrontWebDistribution(this,'MySimpleAppDistribution',{
+    //   originConfigs: [
+    //     {
+    //       s3OriginSource: {
+    //         s3BucketSource: websiteBucket,
+    //       },
+    //       behaviours: [{isDefaultBehavior: true }],
+    //     },
+    //   ],
+    // });
 
     new BucketDeployment(this, 'MysimpleAppWebsiteDeploy', {
       sources: [Source.asset(path.join(__dirname,'..', 'frontend', 'build'))],
@@ -106,17 +122,17 @@ export class HuiSimpleAppStack extends cdk.Stack {
 
     new cdk.CfnOutput(this,'MySimpleAppWebsiteBucketNameExport',{
       value: websiteBucket.bucketName,
-      exportName: `MySimpleAppWebsiteBucketName${props?.envName}`,
+      exportName: `MySimpleAppWebsiteBucketName`,
     });
 
     new cdk.CfnOutput(this, 'MySimpleAppWebsiteUrl',{
       value: cloudFront.distributionDomainName,
-      exportName: `MySimpleAppWebsiteUrl${props?.envName}`,
+      exportName: `MySimpleAppWebsiteUrl`,
     });
 
     new cdk.CfnOutput(this, 'MySimpleAppApi', {
       value: HttpApi.url,
-      exportName: `MySimpleAppApiEndPoint${props?.envName}`,
+      exportName: `MySimpleAppApiEndPoint`,
     });
   }
 }
